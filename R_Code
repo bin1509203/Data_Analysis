@@ -1,0 +1,7 @@
+Set up : http://www.r-project.org/
+Additional GUI : RStudio : http://www.rstudio.com/products/rstudio/
+//// -----Install & update & use & show list packages
+install.packages("name")
+update.packages("name")
+library(name)
+library(help="randomForest")
