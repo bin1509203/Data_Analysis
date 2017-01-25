@@ -142,7 +142,7 @@ def  fetch_detail_url ():
             count_str = "%d. " % counter # count한 숫자를 출력하기 위한 구문
                                          # f.write 는 문장만 input으로 받을 수 있어서
             f.write(count_str)           # 숫자를 문장화 시킨 후 출력할 수 있다.
-            f.write(title + "  " )
+            f.write(title + "  " )  
 
             f.write(date + "\n")
 
