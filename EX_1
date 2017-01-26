@@ -1,0 +1,78 @@
+<비정형 데이터 분석 후 워드 클라우드 생성하기>
+
+1. 데이터 크롤링
+
+2. 작업용 디렉터리 지정 > setwd("M:\\R_temp") : 작업할때마다 지정해야 이 안에있는 데이터파일을 인식해 불러올수있음
+
+3. 필요 패키지를 설치 한 후 R에 loading 
+> install.packages("KoNLP") # 한국어 관련 작업 시 필요. 한번 설치 해놓으면 다시 install 할 필요없이 바로 로딩만 하면 됨
+> library(KoNLP) # 패키지 로딩
+> install.packages("wordcloud") # Word Cloud 작업 패키지
+> library(wordcloud)
+> useSejongDic() # 한글이 저장되어 있는 세종사전을 사용
+
+## 사전에 없는 단어 등록하는 방법
+> mergeUseDic(data.frame("원하는 단어", "ncn")
+> mergeUseDic(data.frame("단어저장된파일명.txt", "ncn") # 추가할 단어가 많은 경우 파일로 만들어서 추가
+
+4. 분석할 원본 데이터 불러오기
+> data1 <- readLines("seoul_new.txt") # 원본 데이터를 읽어 data1이라는 변수에 저장
+# 만약 글자가 깨지면 txt 파일의 인코딩 부분이 잘못 설정된것. UTF-8 등 으로 되어있으면 "ANSI" 로 바꾸어 다시 저장하고 다시 불러오기
+
+5. 데이터 중 명사만 골라내 새로운 변수에 저장
+> data2 <- sapply(data1, extractNoun, USE.NAMES=F) 
+# sapply() 함수는 여러 데이터를 한번에 저장하는 함수
+# extractNoun 함수는 문장을 단어로 만들어 명사만 추출하는 함수
+
+6. 각 명사만 추출하여 명사 당 배열 하나의 공간에 각각 저장  ex> "변수" "저장" => [1] 변수 [2] 저장 ....
+> data3 <- unlist(data2)
+
+7. 출력 결과에서 원하지 않는 내용 걸러 내기 using gsub 함수
+# gsub("변경전 글자", "변경후 글자", "원본데이터")
+> data3 <- gsub("\\d+", "", data3) # 모든 숫자 없애기
+> data3 <- gsub("서울시", "", data3) # 서울시 없애기
+> data3 <- gsub("서울", "", data3)
+> data3 <- gsub("요청", "", data3)
+> data3 <- gsub("제안", "", data3)
+> data3 <- gsub(" ", "", data3) # 공백 없애기
+> data3 <- gsub("-", "", data3) # - 없애기
+## 위의 방법을 개선 : 제거하고 싶은 단어들을 파일로 저장한 후
+> txt <- readLines("gsubfile.txt") # 숫자와 . (온점)은 포함하면 안됨. 숫자는 수동으로 직접 해야함 
+#  . 은 stand for any character 이라서 모든 글자를 지워버림
+> data3 <- gsub("[][!#$%()*,.:;<=>@^_'|~.{}]", "", data3) # 이런 방식으로 다양한 특수문자 지울 수 있다.
+> head(txt, 50) # 그냥 잘 저장되어있는지 확인해보는 거라 생략가능
+> cnt_txt <- length(txt)
+> cnt_txt
+> for( i in 1 : cnt_txt) {
+	data3 <- gsub((txt[i]), "", data3)
+	}
+> head(data3, 50) # 생략 가능
+
+8. 가공한 자료를 파일로 저장
+> write(unlist(data3), "seoul_2.txt")
+
+9. 파일을 테이블 형태로 다시 불러오는 작업으로 공백제거하기
+> data4 <- read.table("seoul_2.txt")
+
+## 다량의 자료 중 일부만 보는 방법
+> head(data4, 50) # 위에서 부터 50가지만 본다.
+
+## 몇 건의 데이터가 저장되어있는지 조회
+> nrow(data4)
+
+10. 빈도가 높은 순서로 단어 정렬
+> wordcount <- table(data4)
+> head(sort(wordcount, decreasing=T), 20) # 정렬된 단어를 보고 뺄 단어 찾기
+
+11. Word Cloud 형태로 그래픽 출력
+> library(RColorBrewer)
+> palete <- brewer.pal(9, "Set3")
+> wordcloud(names(wordcount), freq = wordcount, scale = c(3, 0.2), rot.per = 0.25, min.freq = 1, 
++ random.order=F, random.color=T, colors=palete)
+> legend(0.3, 1, "서울시 응답소 요청사항 분석", cex=0.8, fill=NA, border=NA, bg="white", 
++ text.col="red", text.font=2, box.col="red")
+
+## scale = c(5, 1) 의 의미 : 단어 크기를 1부터 5 사이의 크기로 배열 또는 최대 5, 크기 간격을 1  둘 중 하나일듯.
+
+
+
