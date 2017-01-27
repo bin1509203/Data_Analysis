@@ -35,7 +35,7 @@ def  fetch_list_url(the_page): # the_page 인자를 통해 불러오고자 하�
 
     url = urllib.request.Request ( list_url, request_header )
 
-
+.
     # 불러온 리스트 페이지 내용을 utf 8  로 변환
     res = urllib.request.urlopen(url). read(). decode("utf-8")    
 
