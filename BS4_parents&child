@@ -1,0 +1,101 @@
+html="""
+
+<html>
+
+     <head>
+
+          <title> test web </title>
+
+     </head>
+
+     <body>
+
+          <p class="ptag black"  align="center"> text contents 1 </p>
+
+          <p class="ptag yellow" align="center"> text contents 2 </p>
+
+          <p class="ptag red"    align="center"> text contents 3 </p>
+
+          <img src="c:\Python34\Koala.jpg" width="500" height="300">
+
+     </body>
+
+</html> """
+
+
+
+from bs4 import BeautifulSoup
+
+bs=BeautifulSoup(html, "html.parser")
+
+
+
+
+
+Parents, children 관계
+
+
+
+>>> body_tag = bs.find ('body')
+
+>>> body_tag                              # 기본은  body 태그 내용이 출력
+
+
+
+>>> for child in body_tag.children :  # <body> 의 종속 태그들을 출력
+
+             print ( child )
+
+<p align="center" class="ptag black......   
+
+
+
+>>> img_tag = bs.find ( "img" )        # img 를 포함하는 태그의 부모 태그를
+
+>>> img_tag . parent
+
+<body>
+
+<p align="center".......
+
+
+
+
+
+
+
+find_parent() find_parents()
+
+
+
+>>> img_tag .find_parent ('html')   # 부모태그 중 HTML 을 포함하는 내용까지 거슬러 올라간다
+
+
+
+>>> img_tag .find_parents ('html')   # HTML 을 포함하는 모든 내용을 찾아서 출력
+
+
+
+>>> p_tag = bs.find ( 'p', class_ ='text' )
+
+>>> parents = p_tag. find_parents()     # 해당 태그 상위의 모든 태그들을 찾아서 출력
+
+>>> for parent in parents :
+
+  print (parent.name)
+
+
+
+div
+
+img
+
+body
+
+html
+
+[documents]
+
+
+
+출처: http://systemtrade.tistory.com/347 [시스템매매]
