@@ -6,12 +6,10 @@ import re
 
 import os
 
-list_url = "http://eungdapso.seoul.go.kr/Shr/Shr01/Shr01_lis.jsp"
-
-detail_url = "http://eungdapso.seoul.go.kr/Shr/Shr01/Shr01_vie.jsp"
+list_url = "http://eungdapso.seoul.go.kr/Shr/Shr01/Shr01_lis.jsp" # 게시글 목록가 나와있는 주소
+detail_url = "http://eungdapso.seoul.go.kr/Shr/Shr01/Shr01_vie.jsp" # 개별 게시글의 주소
 
 # 저장할 폴더와 파일 관리
-
 def  get_save_path():        
 
     save_path = str (input ("저장할 위치와 파일명을 입력하세요 :  " ))
@@ -19,7 +17,6 @@ def  get_save_path():
     save_path = save_path.replace ("\\", "/")
 
     # 위 입력한 폴더 존재를 검사, 부존재시 생성
-
     if not os.path.isdir ( os.path.split (save_path) [0]) :    
 
         os.mkdir ( os.path.split (save_path) [0] )
@@ -28,39 +25,32 @@ def  get_save_path():
 
 
 # li 태그 속 민원 제목을 호출 및 정렬하는 함수 
-
 def  fetch_list_url(the_page): # the_page 인자를 통해 불러오고자 하는 page number을 받는다.
 
     # 리스트 페이지에서 내용을 불러온다                                                      
-
-    request_header = urllib.parse.urlencode ( {"page" : the_page} )   # "1" 대신에 the_page 라는 변수로 바꿔주었다. || 숫자는 "숫자"  /  변수는  변수
-
+    request_header = urllib.parse.urlencode ( {"page" : the_page} )   # "1" 대신에 the_page 라는 변수로 바꿔주었다. 
+                                                                      # 숫자는 "숫자"  /  변수는 ""없이 변수만
      # 변수에 저장된 파라미터를 utf 8 로 변환
-
     request_header = request_header.encode ("utf-8")           
 
     url = urllib.request.Request ( list_url, request_header )
 
 
     # 불러온 리스트 페이지 내용을 utf 8  로 변환
-
     res = urllib.request.urlopen(url). read(). decode("utf-8")    
 
     bs = BeautifulSoup( res , "html.parser" )
 
 
-    # li 태그 속 민원 제목을 모두 불러온다
-
+    # li 태그 중 class_="pclist_list_tit2" 라는 속성을 가진 li 태그들의 제목을 모두 불러온다.
     listbox = bs.find_all ("li", class_="pclist_list_tit2") 
 
 
     # 파라미터를 저장할 리스트를 생성               
-
     params = []   
 
 
     # li 태그 속 리스트 값을 정규식으로 뽑아서 추가                                                         
-
     for i in listbox :
 
         params .append (re.search ("[0-9]{14}", i.find("a")["href"]). group() ) 
@@ -69,26 +59,21 @@ def  fetch_list_url(the_page): # the_page 인자를 통해 불러오고자 하�
 
 
  # 민원 내용을 호출하는 함수
-
 def  fetch_detail_url ():    
 
-    # 민원 제목 호출함수를 실행
-
-   # params = fetch_list_url(2)  
     counter = 1 # 게시물 갯수 카운트
 
-    # 파일을 작성 준비
-
+    # 파일을 작성 / 새로 open 할때마다 해당 파일을 덮어쓰기 하므로 한 파일에 모두 저장하려면 한번 open 한뒤에 모두 저장하고 나서 close 해야함
     f = open (get_save_path(), 'w', encoding="utf-8")
 
-    for page in range(1, 100) :
+    for page in range(1, 100) : # 1~99 page 를 차례로 불러온다.
 
+        # 민원 제목 호출함수를 실행
         params = fetch_list_url(page)  
 
-        for p in params :
+        for p in params : # 해당 페이지에 있는 모든 게시물들을 차례로 불러온다.
 
             # 민원 페이지를 얻기위한 파라미터를 인코딩
-
             request_header = urllib.parse.urlencode ( {"RCEPT_NO" : str(p) } )    
 
             request_header = request_header.encode ( "utf-8" )
@@ -103,39 +88,30 @@ def  fetch_detail_url ():
 
             bs = BeautifulSoup(res, "html.parser")
 
-            # div 태그들을 호출
-
+            # class_="form_table" 이라는 속성을 가진 div 태그들을 호출
             div = bs.find ("div", class_="form_table")
 
 
 
             # div 안의 table 을 호출
-
             tables = div.find_all("table") 
 
             # 첫 td 태그를 호출 : 민원 제목 날짜                    
-
             info = tables[0].find_all("td")
 
             # 첫 td 태그의 공백을 제거  : 민원제목               
-
             title = info[0].get_text(strip=True)
 
             # 두번쨰 td 태그의 공백을 제거 : 민원날짜           
-
             date = info[1].get_text(strip=True)            
 
 
 
             # 두번쨰 table 의 민원내용을 호출, 공백제거
-
         #   question = tables[1].find("div", class_="table_inner_desc").get_text(strip=True)
 
             # 세번쨰 table 의 민원답변을 호출, 공백제거 
-
         #   answer = tables[2].find("div", class_="table_inner_desc").get_text(strip=True)   
-
-
 
 
         #  f.write("==" * 30 + "\n")
