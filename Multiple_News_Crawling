@@ -1,0 +1,149 @@
+# 동아일보 특정 키워드를 포함하는, 특정 날짜 이전 기사 내용 크롤러(정확도순 검색)
+# python [모듈 이름] [키워드] [가져올 페이지 숫자] [결과 파일명]
+# 한 페이지에 기사 15개
+
+# 1. 특정 키워드를 통해 신문 기사를 검색해 관련된 기사 목록을 얻어 옴
+# 2. 신문사의 기사 목록 페이지의 URL주소 패턴을 분석해, 
+#    반복문으로 여러 목록 페이지를 돌며 올라와 있는 기사 제목에 연결된 모든 링크 주소(기사 본문 URL 주소)를 얻어 옴
+# 3. 얻어낸 기사의 링크 주소 하나하나에 접근해, 기사 본문 내용이 담긴 HTML 요소를 찾아 
+#    해당 요소만 긁어와 본문 내용을 하나의 파일에 저장
+
+ # 해당 모듈을 실행할 때, 터미널에서 사용자로부터 인자를 받기 위해 'sys.argv'를 사용하려고 'sys'를 임포트
+import sys
+from bs4 import BeautifulSoup # 받은 응답(HTML 코드)를 파싱하기 위해 'BeautifulSoup'을 임포트
+import urllib.request # 타겟 URL에 요청을 보내고 응답을 받기 위해 'urllib'
+# 'quote'는 'urlopen'에서 인자로 사용되는 URL주소(이하 타겟 주소)에 한글(UTF_8)이 포함되었을 때, 
+# 이를 아스키(ASCII)형식으로 바꿔주기 위한 함수
+from urllib.parse import quote
+ 
+
+# 'urlopen'으로 요청을 보낼 타겟 주소를 세 부분으로 나누어 상수에 할당
+# 타겟 주소를 왜 세 부분으로 나누어놓았는지 알기 위해선 'urlopen'으로 처음 접근할 
+# 동아일보의 기사 검색 페이지(이하 타겟 페이지)를 찾아 해당 페이지의 URL패턴을 찾아내야 합니다. 
+# 한 페이지당 15개씩 게시
+# 이 화면 뿐 아니라 원하는 갯수 만큼의 기사 목록 페이지(2페이지, 3페이지 ...)에 있는 각각의 기사에 접근
+# 기사 내용을 수집하기 위해선 파란색으로 링크처리가 된 기사의 제목에서 연결된 기사 본문 URL주소를 뽑아와야 합니다.
+# 1 페이지 = http://news.donga.com/search?check_news=1&more=1&sorting=3&range=3
+#           &query=%EC%B5%9C%EC%88%9C%EC%8B%A4
+# 분석 : 'check_news=1'은 뉴스선택 / 'more=1'은 더보기를 누른 상태 / 'sorting=3'은 정확도순 정렬
+#        'range=3'은 전체기간검색 / 'query=아스키코드' 는 검색한 키워드 / 현재 페이지 정보는 안보이는구나.
+# 2 페이지 = http://news.donga.com/search?p=16&query=%EC%B5%9C%EC%88%9C%EC%8B%A4
+#           &check_news=1&more=1&sorting=3&search_date=1&v1=&v2=&range=3
+# 분석 : 두번째 페이지의 URL주소가 달라짐 => 'query=아스키코드'위치가 앞쪽으로 이동 / 페이지숫자로 추정되는 'p=16'
+# 3 페이지 = http://news.donga.com/search?p=31&query=%EC%B5%9C%EC%88%9C%EC%8B%A4
+#           &check_news=1&more=1&sorting=3&search_date=1&v1=&v2=&range=3
+# 분석 : 페이지숫자로 추정되는 'p=31'
+# 4 페이지 = http://news.donga.com/search?p=46&query=%EC%B5%9C%EC%88%9C%EC%8B%A4
+#           &check_news=1&more=1&sorting=3&search_date=1&v1=&v2=&range=3
+# 분석 : 페이지숫자로 추정되는 'p=46'
+# 규칙 : 페이지가 증가할 때마다 'p'의 값이 15씩 더해지는 것. page_index = 1 + 15*(page-1)
+# 페이지수를 나타내는 'p='부분과 검색 키워드를 나타내는 '&query='부분의 정보를 사용자로 부터 입력받아 
+# 하나의 타겟 주소로 결합하기 위해서 타겟 주소를 세 부분으로 나눈 것
+
+
+TARGET_URL_BEFORE_PAGE_NUM = "http://news.donga.com/search?p="
+TARGET_URL_BEFORE_KEWORD = '&query='
+TARGET_URL_REST = '&check_news=1&more=1&sorting=3&search_date=1&v1=&v2=&range=3'
+ 
+
+ 
+# 기사 검색 페이지에서 기사 제목에 링크된 기사 본문 주소 받아오기
+# 함수 input : 크롤링해 올 기사 목록 수인 page_num과, 타겟 주소인 URL, 그리고 저장할 결과파일명인 'output_file'
+def get_link_from_news_title(page_num, URL, output_file):
+    
+    # 입력 받은 페이지까지 한 페이지 씩 방문하는 반복문
+    for i in range(page_num): # 기사를 긁어올 페이지 수만큼 코드를 반복 : 0 ~ 'page_num' - 1
+        current_page_num = 1 + i*15 # page_index = 1 + 15*(page-1)
+
+        # input URL에서 첫번째로 '='문자가 나오는 위치를 'position'에 할당한 후, 
+        # 해당 'position'뒤에 'current_page_num'을 스트링으로 변환한 후 삽입
+        # URL에 처음으로 '='문자가 나오는 위치는 main에서 URL 주소에 마저 결합하지 않았던 페이지 숫자를 나타내는 부분
+        position = URL.index('=')
+        URL_with_page_num = URL[: position+1] + str(current_page_num) \
+                            + URL[position+1 :]
+        
+        # 'URL_with_page_num'을 이용해 'urlopen'으로 요청을 하고 응답을 받아 'BeaurifulSoup'객체인 'soup'을 만듦
+        source_code_from_URL = urllib.request.urlopen(URL_with_page_num)
+        soup = BeautifulSoup(source_code_from_URL, 'lxml',
+                             from_encoding='utf-8')
+
+        # 'i+1' 번째 페이지의 여러 기사 목록을 돌며 기사 제목에 링크된 기사 본문 주소(URL주소)를 얻어 오는 부분
+        # 크롬 개발자 도구(F12) + 소스코드가 궁금한 부분 위에서 오른쪽 클릭하여 '검사' 클릭을 통해
+        #  첫번째 기사의 제목(링크)부분이 어딘지 찾아보면 class가 'tit'인 p태그 안의 첫번째 a태그에 연결된 URL주소
+        # 2번째 기사, 3번째 기사 .... 15번째 기사 제목 모두 연결된 기사 본문 URL주소가 위와 같은 형식 
+        # 따라서 우리는 위에서 만든 'soup'객체에서 class='tit인 p태그를 모두 뽑아와 
+        # 그 안에 있는 첫번째 a태그의 'href'의 내용을  가져온다면 모든 기사의 내용을 크롤링할 수 있습니다.
+
+        # 'soup'객체에서 'find_all' 메소드를 통해 class가 'tit'인 p태그를 모두 가져와 
+        # 반복문을 통해 'title'에 하나씩 할당             
+        for title in soup.find_all('p', 'tit'):
+
+            # 'select' 메소드는 인자로 주어지는 태그를 모두 가지고 오며, 
+            # 해당 객체는 인덱스로 태그 하나하나에 접근할 수 있습니다.
+            # 'select'메소드를 통해 모든 a태그를 'title_link'에 저장
+            title_link = title.select('a') 
+
+            # 기사 본문 URL 주소는 p태그 안 첫번째 a태그에 저장 =>  'title_link'의 0번 인덱스로 첫번째 a태그에 접근
+            # 키 값으로 'href'를 이용해 'href'로 연결된 URL주소를 'article_URL'에 저장
+            article_URL = title_link[0]['href']
+
+            # 2개의 반복문을 통해 최종적으로 얻어진 기사 본문 URL주소를 'get_text'함수에 결과 파일명과 함께 전달
+            get_text(article_URL, output_file)
+ 
+
+
+# 기사 본문 내용 긁어오기 (위 함수 내부에서 기사 본문 주소 받아 사용되는 함수)
+def get_text(URL, output_file):
+    source_code_from_url = urllib.request.urlopen(URL) # 기사 URL 주소를 통해 응답을 받아
+    soup = BeautifulSoup(source_code_from_url, 'lxml', from_encoding='utf-8') # 'BeautifulSoup'객체를 만들고
+    content_of_article = soup.select('div.article_txt') # 본문을 추출하여 'content_of_article' 에 저장
+    # 원문 페이지에서 본문 content가 속해있는 tag 를 분석해보면 class가 article_txt인 div tag 내에 있다.
+    # 'select'메소드를 통해  class가 'article_txt'인 div태그 안 요소만 추출
+
+    for item in content_of_article: # div 태그 내 content를 한줄 한줄 for문을 통해 불러오는 반복문
+        string_item = str(item.find_all(text=True)) # 'text=True'를 통해 해당 줄의 text 요소만 추출
+        output_file.write(string_item) # 추출한 text를 파일에 write
+ 
+ 
+# 메인함수
+##def main(argv):
+def main() : 
+    ##if len(argv) != 4:
+    ##    print("python [모듈이름] [키워드] [가져올 페이지 숫자] [결과 파일명]")
+    ##    return
+
+    ##  argv 사용법을 잘 몰라 이 방법 대신 코드 상에서 직접 각 변수를 지정해 주었다.
+
+    # 'sys.argv'를 통해 사용자로부터 검색 키워드, 페이지 숫자, 결과 파일명을 
+    # 각각 'keyword', 'page_num', 'output_file_name'에  입력받습니다.
+    ##keyword = argv[1]
+    ##page_num = int(argv[2]) # 'page_num'은 정수형으로 쓰여야 하므로 int형으로 변환해서 사용
+    ##output_file_name = argv[3]
+    keyword = '사드'
+    page_num = int('5')
+    output_file_name = 'M:\\Python_temp\\test_2.txt' 
+    # 왜인지는 모르겠지만 M:\Python_temp\test_2.txt 로 하면 M:\\Python_temp\test_2.txt 로 인식됨
+    # 그래서 \ 하나 대신 \\ 로 바꾸면 잘 동작함.
+
+    # target_URL 변수에 모듈 위에서 정의해놓은 URL상수들을 사용자로부터 입력받은 정보와 결합
+    # 'TARGET_URL_BEFORE_PAGE_NUM'뒤에 사용자로부터 입력받은 페이지 숫자를 결합하지는 않고 
+    # 검색 키워드인 'keword'만 'TARGET_URL_BEFORE_KEWORD'뒤에 'quote'(urllib.parse의 메소드)만 사용해 결합
+    # 'quote' 메소드를 'keword'에 사용하는 이유는 우리가 검색할 때 사용하는 언어는 한글('UTF-8')이기 때문
+    # URL주소에는 'ASCII' 표현 방식 이외의 문자표기법은 사용될 수 없기 때문에 
+    # 'UTF-8' 방식의 문자(검색키워드)를 'ASCII' 방식으로 변환해야하기 위해 'quute'메소드를 'keword'에 사용
+    target_URL = TARGET_URL_BEFORE_PAGE_NUM + TARGET_URL_BEFORE_KEWORD \
+                 + quote(keyword) + TARGET_URL_REST
+    output_file = open(output_file_name, 'w') # 파일을 main 함수에서 딱 한 번 오픈한 뒤
+
+    # 페이지 숫자가 포함되지 않은 타겟 주소를 'get_link_from_news_title'함수를 이용해 기사를 크롤링해와 파일로 저장
+    get_link_from_news_title(page_num, target_URL, output_file)
+    output_file.close() # 위의 함수를 불러와 여러번의 쓰기작업을 하고 main함수 마지막에 한 번 close 하여
+                        # 매번 쓰기할때마다 덮어쓰기가 아닌 이어붙이기가 가능한 것이다.
+ 
+ 
+if __name__ == '__main__':
+    ##main(sys.argv)
+    main()
+
+
+# 출처: http://yoonpunk.tistory.com/6 [윤빵꾸의 공부노트]
