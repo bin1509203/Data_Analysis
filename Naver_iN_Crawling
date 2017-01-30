@@ -1,0 +1,61 @@
+from bs4 import BeautifulSoup
+import urllib.request
+from urllib.parse import quote
+
+# 1페이지 = https://search.naver.com/search.naver?sm=tab_hty.top&where=kin
+#           &oquery=%EC%84%9C%EC%9A%B8%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4
+#           &ie=utf8&query=%EC%84%9C%EC%9A%B8+%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4
+# 2페이지 = https://search.naver.com/search.naver?where=kin&ie=utf8&kin_sort=0&kin_display=10&qt=&df=2002-09-01&dt=
+#           2017-01-31&title=0&term=0&answer=0&grade=0&choice=0&sec=0&nso=so%3Ar%2Ca%3Aall%2Cp%3Aall
+#           &query=%EC%84%9C%EC%9A%B8+%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4&c_id=&c_name=&sm=tab_pge&kin_start=11
+# 3페이지 = https://search.naver.com/search.naver?where=kin&ie=utf8&kin_sort=0&kin_display=10&qt=&df=2002-09-01&dt=
+#           2017-01-31&title=0&term=0&answer=0&grade=0&choice=0&sec=0&nso=so%3Ar%2Ca%3Aall%2Cp%3Aall
+#           &query=%EC%84%9C%EC%9A%B8+%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4&c_id=&c_name=&sm=tab_pge&kin_start=21
+# 규칙 : page_index = 1 + 10*(page - 1)
+
+TARGET_URL_BEFORE_UNTIL_DATE = 'https://search.naver.com/search.naver?where=kin&ie=utf8&kin_sort=0&kin_display=10&qt=&df=2002-09-01&dt='
+TARGET_URL_BEFORE_KEYWORD = '&title=0&term=0&answer=0&grade=0&choice=0&sec=0&nso=so%3Ar%2Ca%3Aall%2Cp%3Aall&query='
+TARGET_URL_REST = '&c_id=&c_name=&sm=tab_pge&kin_start='
+
+# 지식iN 검색 페이지에서 지식iN 제목에 링크된 지식iN 본문 주소 받아오기
+def get_link_from_iN_title(page_num, URL, output_file):
+    for i in range(page_num):
+        current_page_num = 1 + i*10 # page_index = 1 + 10*(page - 1)
+        URL_with_page_num = URL + str(current_page_num) # 페이지 index가 URL 맨 뒤에 위치
+
+        source_code_from_URL = urllib.request.urlopen(URL_with_page_num)
+        soup = BeautifulSoup(source_code_from_URL, 'lxml',
+                             from_encoding='utf-8')
+        
+        # soup.select('A > B') => A 태그의 directly beneath 에 있는 B 태그를 선택
+        for item in soup.select('dt > a'):
+            article_URL = item['href'] # 'href'로 연결된 URL주소를 'article_URL'에 저장
+            get_text(article_URL, output_file)
+
+# 지식iN 본문 내용 긁어오기 (위 함수 내부에서 지식iN 본문 주소 받아 사용되는 함수)
+def get_text(URL, output_file):
+    source_code_from_url = urllib.request.urlopen(URL)
+    soup = BeautifulSoup(source_code_from_url, 'lxml', from_encoding='utf-8')
+
+    # 본문 내용이 div tag 중 class="_endContentsText" 인 div tag 내부에 담겨 있다.
+    content_of_article = soup.select('div._endContentsText')
+
+    output_file.write("==" * 30 + "\n")
+    for item in content_of_article:
+        string_item = str(item.find_all(text=True)) # 'text=True'를 통해 해당 줄의 text 요소만 추출
+        output_file.write(string_item) # 추출한 text를 파일에 write
+    output_file.write("==" * 30 + "\n")
+
+def main():
+    keyword = '서울 데이트코스'
+    page_num = int('2')
+    until_date = '2017.01.30'
+    output_file_name = 'M:\\Python_temp\\Naver_iN_Crawling.txt'
+
+    target_URL = TARGET_URL_BEFORE_UNTIL_DATE + until_date + TARGET_URL_BEFORE_KEYWORD + quote(keyword) + TARGET_URL_REST
+    output_file = open(output_file_name, 'w')
+    get_link_from_iN_title(page_num, target_URL, output_file)
+    output_file.close()
+
+if __name__ == '__main__' :
+    main()
