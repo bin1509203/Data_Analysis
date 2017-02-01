@@ -1,0 +1,77 @@
+from bs4 import BeautifulSoup
+import urllib.request
+from urllib.parse import quote
+
+TARGET_URL_BEFORE_KEWORD = 'https://search.naver.com/search.naver?where=post&sm=tab_pge&query='
+TARGET_URL_REST = '&st=sim&date_option=0&date_from=&date_to=&dup_remove=1&post_blogurl=' \
+                '&post_blogurl_without=&srchby=all&nso=&ie=utf8&start='
+
+# 블로그 검색 페이지에서 블로그 제목에 링크된 블로그 본문 주소 받아오기
+def get_link_from_blog_title(page_num, URL, output_file):
+    for i in range(page_num):
+        current_page_num = 1 + i*10 # page_index = 1 + 10*(page - 1)
+        URL_with_page_num = URL + str(current_page_num) # 페이지 index가 URL 맨 뒤에 위치
+        
+        # i - 1 번째 page의 내용을 request 한 뒤 파싱
+        source_code_from_URL = urllib.request.urlopen(URL_with_page_num)
+        soup = BeautifulSoup(source_code_from_URL, 'lxml', from_encoding='utf-8')
+        
+        # soup.select('A > B') => A 태그의 directly beneath 에 있는 B 태그를 선택
+        for item in soup.select('dt > a'): 
+            article_URL = item['href'] # 'href'로 연결된 URL주소를 'article_URL'에 저장
+            get_link_from_frameset(article_URL, output_file) # frame tag에서 우회 URL 접근
+            
+
+
+# 네이버 블로그는 우클릭 금지를 위해서 body tag 다음에 frameset tag 를 이용하여 새로운 URL을 지정
+# 따라서 내용을 크롤링 하기 위해서는 이 우회 URL로 블로그를 재 접속하여야 한다.
+def get_link_from_frameset(URL, output_file):
+    
+    # frame tag 를 가져오기 위해 blog 내용을 request 한 뒤 파싱
+    source_code_from_originURL = urllib.request.urlopen(URL)
+    soup = BeautifulSoup(source_code_from_originURL, 'lxml', from_encoding='utf-8')
+
+    # frameset tag 바로 아래의 frame tag 선택
+    # 이때 frame 내의 src 에 URL 이 저장되어있는데 우리가 필요한 URL은 /PostView.~~~ 꼴이다.
+    # blog.me 의 경우에는 http://~~ 꼴이다.
+    # 따라서 이런 URL만 골라내기 위한 if 문이 필요하다.
+    for link in soup.find_all('frame'):
+        frame_URL = link.get('src')
+
+        if frame_URL[1] == 'P' or frame_URL[0] == 'h':
+            if frame_URL[1] == 'P':
+                alternative_URL = 'http://blog.naver.com' + frame_URL # 'src'로 연결된 URL주소를 저장
+            elif frame_URL[0] == 'h':
+                alternative_URL = frame_URL # 'src'로 연결된 URL주소를 저장[blog.me]
+                #print(frame_URL)
+            #print(alternative_URL)
+            output_file.write("==" * 60 + "\n\n")
+            get_text(alternative_URL, output_file)
+    # blog.me 의 경우 URL이 가져와 지질 않는다. 왜그럴까.....
+
+# 블로그 본문 내용 긁어오기 (위 함수 내부에서 블로그 본문 주소 받아 사용되는 함수)
+def get_text(URL, output_file):
+    source_code_from_url = urllib.request.urlopen(URL)
+    # 다른 페이지와 달리 네이버 "블로그"에서 본문 내용은 'cp949' format 이므로 알맞게 encoding 해야함!!!
+    soup = BeautifulSoup(source_code_from_url, 'lxml', from_encoding='cp949')
+    
+    # 본문 내용이 div tag 중 id="postListBody" 인 div tag 내부에 담겨 있다.
+    content_of_article = soup.select("#postListBody")
+    for item in content_of_article:
+        string_item = str(item.find_all(text=True)) # 'text=True'를 통해 해당 줄의 text 요소만 추출
+        output_file.write(string_item)
+
+
+def main():
+    keyword = '서울데이트코스'
+    page_num = int('1')
+    output_file_name = 'M:\\Python_temp\\Naver_Blog_Crawling_2.txt'
+
+    target_URL = TARGET_URL_BEFORE_KEWORD + quote(keyword) \
+                + TARGET_URL_REST
+    output_file = open(output_file_name, 'w')
+    get_link_from_blog_title(page_num, target_URL, output_file)
+    output_file.close()
+
+if __name__ == '__main__' :
+    main()
