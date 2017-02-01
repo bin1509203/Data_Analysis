@@ -1,0 +1,122 @@
+from bs4 import BeautifulSoup
+import urllib.request
+from urllib.parse import quote
+
+# 1 페이지 = https://search.naver.com/search.naver?sm=tab_hty.top&where=post
+#           &oquery=%EC%84%9C%EC%9A%B8%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4
+#           &ie=utf8&query=%EC%84%9C%EC%9A%B8+%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4
+# 2 페이지 = https://search.naver.com/search.naver?where=post&sm=tab_pge
+#           &query=%EC%84%9C%EC%9A%B8%20%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4
+#           &st=sim&date_option=0&date_from=&date_to=&dup_remove=1&post_blogurl=
+#           &post_blogurl_without=&srchby=all&nso=&ie=utf8&start=11
+# 3 페이지 = https://search.naver.com/search.naver?where=post&sm=tab_pge
+#           &query=%EC%84%9C%EC%9A%B8%20%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4
+#           &st=sim&date_option=0&date_from=&date_to=&dup_remove=1&post_blogurl=
+#           &post_blogurl_without=&srchby=all&nso=&ie=utf8&start=21
+# 4 페이지 = https://search.naver.com/search.naver?where=post&sm=tab_pge
+#           &query=%EC%84%9C%EC%9A%B8%20%EB%8D%B0%EC%9D%B4%ED%8A%B8%EC%BD%94%EC%8A%A4
+#           &st=sim&date_option=0&date_from=&date_to=&dup_remove=1&post_blogurl=
+#           &post_blogurl_without=&srchby=all&nso=&ie=utf8&start=31
+# 규칙 : page_index = 1 + 10*(page - 1)
+
+TARGET_URL_BEFORE_KEWORD = 'https://search.naver.com/search.naver?where=post&sm=tab_pge&query='
+TARGET_URL_REST = '&st=sim&date_option=0&date_from=&date_to=&dup_remove=1&post_blogurl=' \
+                '&post_blogurl_without=&srchby=all&nso=&ie=utf8&start='
+
+# 블로그 검색 페이지에서 블로그 제목에 링크된 블로그 본문 주소 받아오기
+def get_link_from_blog_title(page_num, URL, output_file):
+    for i in range(page_num):
+        current_page_num = 1 + i*10 # page_index = 1 + 10*(page - 1)
+        URL_with_page_num = URL + str(current_page_num) # 페이지 index가 URL 맨 뒤에 위치
+
+        source_code_from_URL = urllib.request.urlopen(URL_with_page_num)
+        soup = BeautifulSoup(source_code_from_URL, 'lxml', from_encoding='utf-8')
+        
+        # soup.select('A > B') => A 태그의 directly beneath 에 있는 B 태그를 선택
+        for item in soup.select('dt > a'): 
+            article_URL = item['href'] # 'href'로 연결된 URL주소를 'article_URL'에 저장
+            get_text(article_URL, output_file)
+"""
+# 블로그 본문 내용 긁어오기 (위 함수 내부에서 블로그 본문 주소 받아 사용되는 함수)
+def get_text(URL, output_file) :
+    source_code_from_url = urllib.request.urlopen(URL)
+    soup = BeautifulSoup(source_code_from_url, 'lxml', from_encoding='utf-8')
+
+    # 본문 내용이 div tag 중 class="view" 인 div tag 내부에 담겨 있다.
+    content_of_article = soup.select('div.view')
+
+    for item in content_of_article :
+        string_item = str(item.find_all(text=True)) # 'text=True'를 통해 해당 줄의 text 요소만 추출
+        output_file.write(string_item)
+"""
+# 블로그 본문 제목 긁어오기 (위 함수 내부에서 블로그 본문 주소 받아 사용되는 함수)
+# 네이버 블로그는 우클릭 금지로 content 태그들이 숨겨져있어서 긁어올 수 가 없다.
+def get_text(URL, output_file):
+    source_code_from_url = urllib.request.urlopen(URL)
+    soup = BeautifulSoup(source_code_from_url, 'lxml', from_encoding='utf-8')
+
+    # 본문 제목은 title tag 내부에 있다.
+    content_of_article = soup.select('title')
+
+    for item in content_of_article:
+        string_item = str(item.get_text) # 'text=True'를 통해 해당 줄의 text 요소만 추출
+        output_file.write(string_item)
+
+def main():
+    keyword = '서울데이트코스'
+    page_num = int('2')
+    output_file_name = 'M:\\Python_temp\\Naver_Blog_Crawling.txt'
+
+    target_URL = TARGET_URL_BEFORE_KEWORD + quote(keyword) \
+                + TARGET_URL_REST
+    output_file = open(output_file_name, 'w', encoding='utf-8') # encoding 문제 발생하여 utf-8로 파일 open
+    get_link_from_blog_title(page_num, target_URL, output_file)
+    output_file.close()
+
+if __name__ == '__main__':
+    main()
+"""
+    네이버 블로그는 다른 일반적인 사이트와 달리 frame 태그를 사용하기때문에 다르게 코딩해야함
+    ================================= ? Frame Tag ? ===================================
+    종류 = frame 태그, frameset 태그와 iframe 태그
+    위치 = 특이하게도 body 태그에 작성하는 것이 아니라 head 태그 안에 작성
+    목적 = 한 화면에 여러 개의 브라우저를 표시하기 위한 것이다. 창을 분할하는 개념
+           블로그에서 왼쪽 사이드 메뉴, 상단 메뉴, 중앙에 본문이 있으면 각 부분이
+           하나의 브라우저를 3part로 분할하여 나타낸 것이 아니라
+           한 화면에 3개의 서로다른 URL을 갖는 브라우저를 동시에 표시한 것이다
+    사용법 = 1) frame 태그
+                : 분활된 화면에 대한 속성 지정
+                <frame src="경로 및 파일명" name="분할된 화면의 이름" />
+                * 분할된 화면의 이름은 원래 있는게 아니라 지으면 됩니다!
+
+            2) frameset 태그
+                : 화면을 원하는 대로 분할해주는 태그
+                <frameset rows="숫자(픽셀단위) / %" frameborder="0> </frameset>  → 화면을 '행'으로 분할
+                <frameset cols="숫자(픽셀단위) / %" frameborder="0"> </frameset> → 화면을 '열'로 분할
+                ※ frameborder은 두께를 나타내주는 속성인데, 너무 두껍고 픽셀 단위가 아니라 
+                정밀하게 설정이 어려워 일반적으로 0으로 셋팅
+    예시 = <head>
+            <frameset rows="300,*" frameborder="0">
+                <frame src="http://blog.naver.com" name="top" />
+                <frameset cols="300,*" frameborder="1">
+                    <frame src="http://blog.naver.com/dasol825" name="left" />
+                    <frame src="http://www.greenart.co.kr" name="body" />
+                </frameset>
+            </frameset>
+           </head>
+           <body> ~~~ </body>
+            3) iframe 태그
+                : 어떤 사이트에서 배너같은게 오류가 났는데, 그 박스 안에서만 
+                  '페이지 오류'라는 식으로 나오는 경우 이 태그 사용한 것
+                : 화면을 박스 형태로 분할하여 사용
+                <iframe width="숫자(픽셀단위 / %)" height="숫자(픽셀단위 / %" src="경로 및 파일명"> </iframe>
+                ※ iframe도 특별한 경우가 아니라면 frameborder="0"으로 설정
+    예시 = <head>
+            <iframe width="800" height="500" src="http://blog.naver.com/dasol825" frameborder="1">
+            iframe을 지원하지 않는 브라우저를 사용하고 계십니다. 최신버전의 브라우저로 업그레이드 후 사용하세요
+            </iframe>
+           </head>
+           <body> ~~~ </body>
+
+
+"""
