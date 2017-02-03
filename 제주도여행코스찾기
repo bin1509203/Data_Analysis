@@ -1,0 +1,42 @@
+# 1. data crawling
+# 2. data preprocedure using R
+> setwd("M:\\R_temp")
+> install.packages("stringr")
+> library(KoNLP)
+> library(wordcloud)
+> library(stringr)
+> useSejongDic()
+> mergeUserDic(data.frame(readLines("제주도여행지.txt"), "ncn"))
+# 제주도 관광지명이 사전에 정확히 들어가있지 않으므로 수동으로 추가.
+# <data type>
+# : 동일한 데이터 형으로 자동 변환되어 저장되는 type => Vector / Matrix / Array
+# : 여러 종류의 데이터 형을 저장할 수 있는 type => List / Data Frame
+
+> txt <- readLines("jeju.txt") # data file을 'txt' 변수에 저장
+> place <- sapply(txt, extractNoun, USE.NAMES=F)
+# sapply() 함수는 여러 데이터를 한번에 저장하는 함수
+# extractNoun 함수는 문장을 단어로 만들어 명사만 추출하는 함수
+> head(unlist(place), 30) # 저장된 명사 중 30개 확인하여 데이터 필터링 준비
+> cdata <- unlist(place)
+> place <- str_replace_all(cdata, "[^[:alpha:]]", "") # 한글 & 영어 이외엔 삭제
+# str_replace_all(원본데이터, 찾을 글자, 바꿀 글자)
+# 정규식 => [:alpha:]	문자가 나오는 경우 = [:lower:] and [:upper:]
+# 정규식 => [^ab]		a 와 b 를 제외한 모든 문자
+> txt <- readLines("제주도여행코스gsub.txt") # 제거하고 싶은 단어들
+> cnt_txt <- length(txt)
+> i <- 1
+> for(i in 1:cnt_txt) {
++     place <- gsub((txt[i]), "", place) # 제거
++ }
+
+> place <- Filter(function(x) {nchar(x) >= 2}, place)
+# 문자의 길이가 2 이상인 문자만 골라내 저장 [제거된 단어들의 자리인 한자리 공백이나 조사 같은거 지우기위해]
+> write(unlist(place), "jeju_2.txt") # list 형태로 정제된 data 저장
+> rev <- read.table("jeju_2.txt") # table data를 'rev'에 저장
+> wordcount <- table(rev) # table data 형태로 'rev' 를 'wordcount'에 저장
+> head(sort(wordcount, decreasing=T), 30) # 가장 빈번하게 나온 단어 순서대로 30개 조회해보기
+
+> library(RColorBrewer)
+> palete <- brewer.pal(9, "Set1")
+> wordcloud(names(wordcount), freq=wordcount, scale=c(3,0.2), rot.per=0.25, min.freq=2,
++ random.order=F, random.color=T, colors=palete)
