@@ -38,3 +38,27 @@ i{n,}		  i가 n회 이상 나오는 경우
 [:punct:]	특수 문자
 [:space:]	공백문자
 [:xdigit:]	16진수가 있는 경우
+
+
+
+
+
+< Example Code>
+
+> alert <- readLines("oracle_alert_testdb.log")
+> error_1 <- gsub(" ", "_", alert) # 공백을 전부 _ 로 변환
+> head(unlist(error_1), 20) # 확인
+
+> error_2 <- unlist(error_1) # 필터링을 위해 unlist 형식으로 변환하여 저장
+> error_2 <- Filter(function(x) {nchar(x) >= 5}, error_2) # 5글자 이상이 되는 것만 필터링
+# nchar() => 입력된 배열이나 문자열의 길이를 알려준다.
+> error_3 <- grep("^ORA-+", error_2, value=T) # ^ORA- 로 시작되는 문자열만 출력
+# < grep(패턴, 원본데이터, value 옵션) >
+# value = F : 패턴에 부합하는 단어가 오는 위치를 출력 / value = T : 패턴에 부합하는 단어를 출력
+
+> write(unlist(error_3), "alert_testdb2.log") # list 형태로 정제된 data 저장
+> rev <- read.table("alert_testdb2.log") # table data를 'rev'에 저장
+> errorcount <- table(rev) # table data 형태로 'rev' 를 'errorcount'에 저장
+> head(sort(errorcount, decreasing = T), 20)
+> wordcloud(names(errorcount), freq=errorcount, scale=c(5,0.2), rot.per=0.25, min.freq=3,
++ random.order=F, random.color=T, colors=palete)
