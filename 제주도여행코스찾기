@@ -17,7 +17,7 @@
 # sapply() 함수는 여러 데이터를 한번에 저장하는 함수
 # extractNoun 함수는 문장을 단어로 만들어 명사만 추출하는 함수
 > head(unlist(place), 30) # 저장된 명사 중 30개 확인하여 데이터 필터링 준비
-> cdata <- unlist(place)
+> cdata <- unlist(place) 
 > place <- str_replace_all(cdata, "[^[:alpha:]]", "") # 한글 & 영어 이외엔 삭제
 # str_replace_all(원본데이터, 찾을 글자, 바꿀 글자)
 # 정규식 => [:alpha:]	문자가 나오는 경우 = [:lower:] and [:upper:]
@@ -36,7 +36,38 @@
 > wordcount <- table(rev) # table data 형태로 'rev' 를 'wordcount'에 저장
 > head(sort(wordcount, decreasing=T), 30) # 가장 빈번하게 나온 단어 순서대로 30개 조회해보기
 
+# 3. data expression
+# 1) wordcloud
 > library(RColorBrewer)
 > palete <- brewer.pal(9, "Set1")
 > wordcloud(names(wordcount), freq=wordcount, scale=c(3,0.2), rot.per=0.25, min.freq=2,
 + random.order=F, random.color=T, colors=palete)
+
+# 2) PIE Chart
+> top10 <- head(sort(wordcount, decreasing = T), 10) # 상위 10개만 추출하여 저장
+> pct <- round(top10/sum(top10)*100, 1) # 10가지 요소가 각각 몇퍼센트를 차지하는지 저장
+> lab <- paste(names(top10), "\n", pct, "%") # 각 요소의 이름 + 엔터 + 퍼센트정보 + %
+# paste() : input 에 들어가는 문자열들을 합쳐주는 함수
+> pie(top10, main="Jeju Tour Recommandation TOP 10", col=rainbow(10), radius=1, cex=0.8, labels = lab)
+
+# 3) BAR Chart
+> bchart <- head(sort(wordcount, decreasing = T), 10)
+# 세로막대
+> bp <- barplot(bchart, col=rainbow(10), cex.names=0.7, las=2, ylim=c(0, 25), 
++  main="Jeju Tour Course")
+> pct <- round(bchart/sum(bchart) * 100, 1)
+> text(x=bp, y=bchart*1.05, labels=paste("(", pct, "%", ")"), col="black", cex=0.7)
+> text(x=bp, y=bchart*0.95, labels=paste(bchart, "건"), col="black", cex=0.7)
+# 가로막대
+> bp <- barplot(bchart, main="course top10", col=rainbow(10), xlim=c(0,25), cex.names=0.7, las=1, horiz=T)
+> pct <- round(bchart/sum(bchart) * 100, 1)
+> text(y=bp, x=bchart*1.15, labels=paste("(", pct, "%", ")"), col="black", cex=0.5)
+> text(y=bp, x=bchart*0.9, labels=paste(bchart, "건"), col="black", cex=0.5)
+# 4) 3D PIE Chart
+> install.packages("plotrix")
+> library(plotrix)
+> th_pct <- round(bchart/sum(bchart)*100, 1)
+> th_names <- names(bchart)
+> th_labels <- paste(th_names, "\n", "(", th_pct, ")")
+> pie3D(bchart, main="Jeju Tour Top 10", col=rainbow(10), cex=0.3, radius =2, labels=th_labels, explode=0.05)
+# explode : 각 pie 간 간격
