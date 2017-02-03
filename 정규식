@@ -62,3 +62,31 @@ i{n,}		  i가 n회 이상 나오는 경우
 > head(sort(errorcount, decreasing = T), 20)
 > wordcloud(names(errorcount), freq=errorcount, scale=c(5,0.2), rot.per=0.25, min.freq=3,
 + random.order=F, random.color=T, colors=palete)
+
+< Example Code + Graph>
+> alert1 <- readLines("oracle_alert_testdb.log")
+> alert2 <- grep("^ORA-+", alert1, value=T) # ORA- 로 시작하는 문자열만 필터링
+> head(unlist(alert2), 5) # 확인
+> alert3 <- substr(alert2, 5, 9) # ORA-XXXXX 형태이므로 숫자부분은 [5] 부터 [9] 사이에 위치한다. 이부분만 필터링
+# < substr('문자열', 시작위치, 마지막위치) >
+# substr('abc123', 2, 4) => "bc1"
+# 여기서 문제가 발생한다. 모든 에러코드가 5자리는 아니므로 원치않는 문자가 [5]~[9] 사이에 올 수 있다.
+> alert4 <- gsub("[A-z]", "", alert3) # 영어 대소문자 제거
+> head(unlist(alert4), 20) # 확인
+
+> write(unlist(alert4), "alert_4.txt")
+> alert5 <- read.table("alert_4.txt")
+> wordcount <- table(alert5)
+> final <- head(sort(wordcount, decreasing = T), 10)
+# 1) bar chart with #
+> bp <- barplot(final, main="oracle error", 
++ col=rainbow(10), cex.names=0.7, las=2, ylim=c(0,4000))
+> text(x=bp, y=final*1.05, labels=paste(final,"건"), col="black", cex=0.7)
+# 2) bar chart with %
+> dev.new() # 그래프를 따로 표시하기 위한 새 창 열기
+> bp <- barplot(final, main="oracle error", 
++ col=rainbow(10), cex.names=0.7, las=2, ylim=c(0,4000))
+> pct <- round(final/sum(final)*100, 1)
+> text(x=bp, y=final*1.05, labels=paste(pct, "%"), col="black", cex=0.7)
+# 3) line chart
+# x축에 들어가는 error id 값을 계속 문자가 아닌 숫자로 인식하여서 제대로 된 그래프가 안나온다. ㅜ.ㅜ
