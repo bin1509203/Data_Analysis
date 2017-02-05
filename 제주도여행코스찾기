@@ -34,7 +34,7 @@
 > write(unlist(place), "jeju_2.txt") # list 형태로 정제된 data 저장
 > rev <- read.table("jeju_2.txt") # table data를 'rev'에 저장
 > wordcount <- table(rev) # table data 형태로 'rev' 를 'wordcount'에 저장
-> head(sort(wordcount, decreasing=T), 30) # 가장 빈번하게 나온 단어 순서대로 30개 조회해보기
+> head(sort(wordcount, decreasing=T), 30) # 가장 빈번하게 나온 단어 순서대로 30개 조회해보기.
 
 # 3. data expression
 # 1) wordcloud
