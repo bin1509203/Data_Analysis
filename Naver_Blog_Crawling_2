@@ -1,10 +1,16 @@
 from bs4 import BeautifulSoup
 import urllib.request
 from urllib.parse import quote
+import re # 정규표현식을 활용하기 위해 're' 라이브러리를 임포트
 
+# 검색할 페이지 URL 규칙
 TARGET_URL_BEFORE_KEWORD = 'https://search.naver.com/search.naver?where=post&sm=tab_pge&query='
 TARGET_URL_REST = '&st=sim&date_option=0&date_from=&date_to=&dup_remove=1&post_blogurl=' \
                 '&post_blogurl_without=&srchby=all&nso=&ie=utf8&start='
+
+# 입,출력 파일명 : 정제할 파일의 이름을 INPUT_FILE_NAME으로, 결과 파일 이름을 OUTPUT_FILE_NAME으로 할당
+INPUT_FILE_NAME = 'M:\\Python_temp\\Naver_Blog_Crawling_2.txt'
+OUTPUT_FILE_NAME = 'M:\\Python_temp\\Naver_Blog_Crawling_2_cleand.txt'
 
 # 블로그 검색 페이지에서 블로그 제목에 링크된 블로그 본문 주소 받아오기
 def get_link_from_blog_title(page_num, URL, output_file):
@@ -19,8 +25,23 @@ def get_link_from_blog_title(page_num, URL, output_file):
         # soup.select('A > B') => A 태그의 directly beneath 에 있는 B 태그를 선택
         for item in soup.select('dt > a'): 
             article_URL = item['href'] # 'href'로 연결된 URL주소를 'article_URL'에 저장
-            get_link_from_frameset(article_URL, output_file) # frame tag에서 우회 URL 접근
             
+            # 블로그 결과에는 3가지 종류의 블로그 존재. 1) http://blog.naver.com/userID/게시물번호
+            # 2) http://userID.blog.me/게시물번호 3) 개인도메인.  3)의 경우에는 너무 다양해 포기.
+
+            # 문자열.find('찾을문자열', 시작범위index, 끝범위index) => 해당 범위 내에 찾을 문자열이
+            # 몇 번째 index에서 나타나는지 return. 만약 찾지 못하면 -1 return
+            # 문자열.replace('찾을문자열', '바꿀문자열')
+            if article_URL.find('blog.naver') != -1: # 1)의 경우 'blog.naver' 가 주소 내 존재
+                get_link_from_frameset(article_URL, output_file) # frame tag에서 우회 URL 접근
+            elif article_URL.find('blog.me') != -1: # 2)의 경우 'blog.me' 가 주소 내 존재
+                # blog.me 주소를 blog.naver 형태로 변환
+                article_URL = article_URL.replace('.blog.me/', '/')
+                article_URL = article_URL.replace('http://', 'http://blog.naver.com/')
+                get_link_from_frameset(article_URL, output_file) # frame tag에서 우회 URL 접근
+            else: # 3)의 경우 크롤링하기에는 복잡하여 skip
+                output_file.write("==" * 60 + "\n\n")
+                output_file.write("Private Blog cannot be accessed" + "\n\n")
 
 
 # 네이버 블로그는 우클릭 금지를 위해서 body tag 다음에 frameset tag 를 이용하여 새로운 URL을 지정
@@ -33,21 +54,18 @@ def get_link_from_frameset(URL, output_file):
 
     # frameset tag 바로 아래의 frame tag 선택
     # 이때 frame 내의 src 에 URL 이 저장되어있는데 우리가 필요한 URL은 /PostView.~~~ 꼴이다.
-    # blog.me 의 경우에는 http://~~ 꼴이다.
+    # blog.me 의 경우에도 blog.naver 형태로 바꿔 접속하면 위와 같은 형식이다.
     # 따라서 이런 URL만 골라내기 위한 if 문이 필요하다.
     for link in soup.find_all('frame'):
         frame_URL = link.get('src')
 
-        if frame_URL[1] == 'P' or frame_URL[0] == 'h':
-            if frame_URL[1] == 'P':
-                alternative_URL = 'http://blog.naver.com' + frame_URL # 'src'로 연결된 URL주소를 저장
-            elif frame_URL[0] == 'h':
-                alternative_URL = frame_URL # 'src'로 연결된 URL주소를 저장[blog.me]
-                #print(frame_URL)
-            #print(alternative_URL)
+        if frame_URL.find('/PostView') != -1:
+            alternative_URL = 'http://blog.naver.com' + frame_URL # 'src'로 연결된 URL주소를 저장
             output_file.write("==" * 60 + "\n\n")
             get_text(alternative_URL, output_file)
-    # blog.me 의 경우 URL이 가져와 지질 않는다. 왜그럴까.....
+        else:
+            output_file.write("==" * 60 + "\n\n")
+            output_file.write("Load Fail" + "\n\n")
 
 # 블로그 본문 내용 긁어오기 (위 함수 내부에서 블로그 본문 주소 받아 사용되는 함수)
 def get_text(URL, output_file):
@@ -61,6 +79,22 @@ def get_text(URL, output_file):
         string_item = str(item.find_all(text=True)) # 'text=True'를 통해 해당 줄의 text 요소만 추출
         output_file.write(string_item)
 
+# 클리닝 함수 : 문자열을 입력 받아 영어와 특수문자를 제거하는 클리닝 함수를 정의
+def clean_text(text):
+    cleaned_text = re.sub('[a-zA-Z]', '', text) # 대소문자 영어를 제거하는 코드
+    cleaned_text = re.sub('[\{\}\[\]\/?.,;:|\)*~`!^\-_+<>@\#$%&\\\\(\'\"]', # 특수문자를 제거하는 코드
+                          '', cleaned_text)
+    return cleaned_text
+
+# 클리닝 main 함수
+def clean_main():
+    read_file = open(INPUT_FILE_NAME, 'r')
+    write_file = open(OUTPUT_FILE_NAME, 'w')
+    text = read_file.read()
+    text = clean_text(text)
+    write_file.write(text)
+    read_file.close()
+    write_file.close()
 
 def main():
     keyword = '서울데이트코스'
@@ -72,6 +106,7 @@ def main():
     output_file = open(output_file_name, 'w')
     get_link_from_blog_title(page_num, target_URL, output_file)
     output_file.close()
+    clean_main()
 
 if __name__ == '__main__' :
     main()
