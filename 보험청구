@@ -1,0 +1,52 @@
+setwd("M:\\R_temp")
+count <- read.csv("연도별요양기관별보험청구건수_2001_2013_세로.csv",
+          stringsAsFactors = FALSE)
+# 팩터(Factor) 변수
+#  - 팩터(Factor 또는 요인) 는 범주형 데이터를 표현하기 위한 데이터 타입(Data Type)입니다
+# 통계적으로 데이터를 구분하는데 있어서 크게는 범주형 데이터와 수치형 데이터로 구분한다.
+# (1) 범주형 변수: 성별(남자와 여자), 계급(이병, 일병, 상병, 병장)과 같이 사전에 정해진 
+#     특정 유형으로 분류되는 경우를 뜻한다.
+# (2) 수치형 변수: 나이, 키, 몸무게 등의 수치형 변수를 말한다.
+# 예를들어 성별을 팩터로 만드는 경우를 생각해보면 성별은 남성(Male)과 여성(Female) 두 가지 값이 가능. 
+# 이때 이 두가지 값을 레벨(levels)값이라고 한다.
+# 범주형 변수가 아닌 변수도 Factor 라고 되어있다. 
+# data.frame() 함수는 문자열 벡터가 입력되면 기본적으로 팩터로 인식하도록 설정되어있기 때문.
+# 그럴 때는 stringsAsfactors 인자를 FALSE로 설정해주어야 한다.
+# 그리고 나서 범주형 변수만 as.factor 함수를 통해 팩터형으로 바꿔주면 된다.
+# read.csv("~~", header = T) => 라벨명(컬럼명)이 포함. =F 하면 라벨명 없어서 자동으로 붙여줌.
+ colname <- count$년도 # chart의 x축이 될 list 설정
+ v1 <- count[,2]/100000
+ v2 <- count[,3]/100000
+ v3 <- count[,4]/100000
+ v4 <- count[,5]/100000
+ v5 <- count[,6]/100000
+ v6 <- count[,7]/100000
+ v7 <- count[,8]/100000
+ v8 <- count[,9]/100000
+ v9 <- count[,10]/100000
+ v10 <- count[,11]/100000
+ plot(v1,xlab="",ylab="",ylim=c(0,6000),axes=FALSE,col="violet",type="o",lwd=2,
+ main=paste("연도별 요양 기관별 보험 청구 건수(단위:십만건)","\n", 
+             "출처:건강보험심사평가원"))
+# xlab, ylab => 축 이름설정 // xlim, ylim => 축 범위설정 // axes => 좌표축 표시유무
+# lwd => 선 굵기 // col => 색상 설정 // type => chart type
+ axis(1,at=1:10,label=colname,las=2) # x축 그리기
+ axis(2,las=1) # y축 그리기
+    
+ lines(v2 ,col="blue",type="o",lwd=2) # 그래프에 line 추가
+ lines(v3 ,col="red",type="o",lwd=2)
+ lines(v4 ,col="black",type="o",lwd=2)
+ lines(v5 ,col="orange",type="o",lwd=2)
+ lines(v6 ,col="green",type="o",lwd=2)
+ lines(v7 ,col="cyan",type="o",lwd=2)
+ lines(v8 ,col="yellow",type="o",lwd=2)
+ lines(v9 ,col="brown",type="o",lwd=2)
+ lines(v10 ,col="pink",type="o",lwd=2)
+ abline(h=seq(0,6000,500),v=seq(1,100,1),lty=3,lwd=0.2) # lty : 선종류 // lwd => 선굵기
+ 
+ col <- names(count[1,2:10]) 
+ # label 이 없는걸로 했기에[stringsAsFactors = FALSE] 년도~한의원 이 값부터가 1행
+ # 먄약 'stringsAsFactors = TRUE' 였으면 155~ 여기가 1행임.
+ colors <- c("violet","blue","red","black","orange","green","cyan","yellow","brown","pink")
+ legend(1,6000,col,cex=0.8,col=colors,lty=1,lwd=2,bg="white")
+ # legend(x축시작위치, y축 끝위치, 내용, cex=글자크기, col=색상, pch=크기, lty=선모양)
