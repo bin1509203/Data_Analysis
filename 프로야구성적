@@ -1,0 +1,37 @@
+ setwd("M:\\R_temp")
+ data <- read.csv("야구성적.csv", header=T) # col label 존재
+ 
+ bp <- barplot(data$연봉대비출루율, main=paste("야구 선수별 연봉 대비 출루율 분석","\n",
+       "(밥값여부계산 ^^;;)"), col=rainbow(25) ,
+        cex.names=0.7, las=2, names.arg=data$선수명, ylim=c(0,50))
+ # names.org => x 축에 해당한는 값이 숫자가 아닐경우 라벨 지정
+ title(ylab="연봉대비출루율", col.lab="red") # 축 title 지정
+  
+ aver <- 0
+ for(i in 1:length(data$연봉대비출루율)) # sum 구하기
+    {
+      aver <- aver+data$연봉대비출루율[i]
+    } 
+ aver <- aver/length(data$연봉대비출루율) # average 구하기
+
+ abline(h=aver, col="blue") # 가로선(h) 긋기
+ 
+ text(x=aver-11, y=14.5, col="black", cex=0.8, labels=paste(aver,'%',"(평균출루율)"))
+ text(x=bp*1.01, y=data$연봉대비출루율*1.05, col="black", cex=0.7, 
+    labels=paste(data$연봉대비출루율,'%'))
+ # chart의 원하는 위치에 text 넣기
+
+ dev.new() # 그래프를 따로 표시하기 위한 새 창 열기
+ par(mfrow=c(1,2))  # 1행 2열 로 그래프 배치하기
+ data_1 <- read.csv("주요선수별성적-2013년.csv", header=T)
+ # 1) main graph
+ row.names(data_1) <- data$선수명
+ data_2 <- data_1[, c(7,8,11,12,13,14,17,19)] # 주어진 data의 모든행에 대하여 원하는 열의 내용만 뽑기(vector이용)
+ stars(data_2, flip.labels=FALSE, draw.segment=TRUE, frame.plot=TRUE, full=TRUE,
+      main="야구 선수별 주요 성적 분석-2013년")
+ # 2) legend
+ # par(new=T) => 만약 한 그래프에 여러 그래프를 겹쳐서 그리고 싶을때 이 함수를 사용하면 중첩되어 그려진다.
+ label <- names(data_2)
+ val <- table(label)
+ color <- c("black","red","green","blue","cyan","violet","yellow","grey")
+ pie(val,labels=label,col=color, radius=0.4, cex=0.6) # 범례용 그래프 만들기
